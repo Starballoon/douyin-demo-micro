@@ -69,7 +69,7 @@ func MGetUser(ctx context.Context, req *user.MGetUserRequest) ([]*user.User, err
 		return nil, util.ErrInternalError
 	}
 
-	if req.UserId == nil && *req.UserId > 0 {
+	if req.UserId != nil && *req.UserId > 0 {
 		result, err := merge(ctx, users, *req.UserId)
 		if err != nil {
 			return nil, err

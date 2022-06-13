@@ -42,7 +42,7 @@ func DeleteFollow(ctx context.Context, follow *Following) error {
 func QueryLeaderIDs(ctx context.Context, userID int64) ([]int64, error) {
 	leaderIDs := make([]int64, 0)
 	if err := DB.WithContext(ctx).Table(util.FollowTable).
-		Select("lead_id").Where("follower_id=?", userID).Find(&leaderIDs).Error; err != nil {
+		Select("leader_id").Where("follower_id=?", userID).Find(&leaderIDs).Error; err != nil {
 		return nil, err
 	}
 	return leaderIDs, nil
@@ -51,7 +51,7 @@ func QueryLeaderIDs(ctx context.Context, userID int64) ([]int64, error) {
 func QueryLeaderIDByUserID(ctx context.Context, leaderIDs []int64, userID int64) ([]int64, error) {
 	result := make([]int64, 0)
 	if err := DB.WithContext(ctx).Table(util.FollowTable).
-		Select("lead_id").Where("leader_id IN (?) AND follower_id=?", leaderIDs, userID).Find(&result).Error; err != nil {
+		Select("leader_id").Where("leader_id IN (?) AND follower_id=?", leaderIDs, userID).Find(&result).Error; err != nil {
 		return nil, err
 	}
 	return leaderIDs, nil

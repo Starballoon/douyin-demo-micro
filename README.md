@@ -1,31 +1,35 @@
 # douyin-demo 菜鸡互啄队
 
-## 修改的主要内容
+## 项目简介
+主要使用KiteX、gin和GORM框架，在[官方demo](https://github.com/RaymondCode/simple-demo)的基础上参考[EasyNote项目](https://github.com/cloudwego/kitex-examples/tree/main/bizdemo/easy_note)将单体服务转换为微服务架构。根据项目接口和功能依赖关系，拆分为3个微服务和1个网关。项目中采用Docker部署MySQL数据库、OSS存储、Etcd注册中心和Redis。OSS资源由容器MinIO托管，Redis主要用于缓存用户操作。
+## 接口描述
 
 | 接口                              | 完成情况 | 入参                | 备注                          |
 |---------------------------------|------|-------------------|-----------------------------|
 | /static/                        | 100% |                   | 切换为OSS存储                    |
-| /douyin/feed/                   | 50%  | token             |                             |
-| /douyin/user/register           | 70%  | username/password |                             |
-| /douyin/user/login              | 60%  | username/password |                             |
-| /douyin/user/                   | 70%  | user_id/token     | user_id和token应该相符           | 
-| /douyin/publish/action/         | 80%  | token             | 没有user_id                   |
-| /douyin/publish/list/           | 60%  | user_id/token     | 可以拉取其他人的发布列表吗？              |
-| /douyin/favorite/action/        | 30%  | user_id/token     |                             |
-| /douyin/favorite/list/          | 30%  | user_id/token     | 数量无限制，前端显示的数量不对，刷视频会拉当前视频作者 |               
-| /douyin/comment/action/         | 30%  | user_id/token     | 前端只给了video_id，没有user_id     |
-| /douyin/comment/list/           | 30%  | token             | 前端显示的评论总数不对，刷视频会拉当前视频作者     |
-| /douyin/relation/action/        | 30%  | token             | 前端只给了to_user_id，没有user_id   |
-| /douyin/relation/follow/list/   | 30%  | user_id/token     | 项目文档接口拼错了吧                  |
-| /douyin/relation/follower/list/ | 30%  | user_id/token     |                             |
+| /douyin/feed/                   | 100%  | token             |                             |
+| /douyin/user/register           | 100%  | username/password |                             |
+| /douyin/user/login              | 100%  | username/password |                             |
+| /douyin/user/                   | 100%  | user_id/token     | user_id和token应该相符           | 
+| /douyin/publish/action/         | 100%  | token             | 没有user_id                   |
+| /douyin/publish/list/           | 100%  | user_id/token     |               |
+| /douyin/favorite/action/        | 100%  | user_id/token     |                             |
+| /douyin/favorite/list/          | 100%  | user_id/token     | 前端显示的数量不对，刷视频会拉当前视频作者 |               
+| /douyin/comment/action/         | 100%  | user_id/token     | 前端只给了video_id，没有user_id     |
+| /douyin/comment/list/           | 100%  | token             | 前端显示的评论总数不对，刷视频会拉当前视频作者     |
+| /douyin/relation/action/        | 100%  | token             | 前端只给了to_user_id，没有user_id   |
+| /douyin/relation/follow/list/   | 100%  | user_id/token     | 项目文档接口拼错了                  |
+| /douyin/relation/follower/list/ | 100%  | user_id/token     |                             |
+## 运行说明
+本项目主要在Windows上使用WSL2和Docker Desktop相关虚拟机进行开发。
 
-docker文件还是有些问题
-要运行的话可以在WSL之类的Linux的项目根目录运行下列命令
+在项目根目录运行下列命令即可启动服务，但是由于容器启动较慢，建议等容器初始化完成再运行项目。
 ```shell
 docker compose up -d
 bash run.sh
 ```
 
+项目IDL生成示例
 ```shell
 kitex -module douyin-demo-micro -service user user.thrift
 ```
@@ -41,28 +45,9 @@ netsh interface portproxy delete v4tov4 listenport=8080 listenaddress=0.0.0.0
 
 接口在线文档[抖音极简版-真菜鸡互啄队](https://www.apifox.cn/apidoc/project-1066782/api-22446795)
 
-增加了docker操作，计划改成微服务架构之后需要托管到容器中去。
-
-在项目根目录下运行，需要安装docker，编译服务镜像，注意config.go中的一些配置，目前由于客户端不支持docker而无法正常使用。
-```shell
-docker build -t douyin-demo-server .
-```
-
-有些接口会同时提供user_id/token，如何两者校验不一致，是否要考虑缓存非法请求的ip、设备号之类的内容在授权时就禁用。
-
-项目没有考虑重复点击的问题，可能需要根据服务ID+用户请求生成一个唯一标识，做一个LRU。或者每个service层的端口单独缓存正在执行的服务？
-
-配置部分都放到util模块了，public文件夹下是数据文件
-
-controller/common.go -> service/common.go 避免循环引用。增加了repository用于简化数据库部分。
+与配置有关的部分都硬编码放到util/config.go文件，未出现的public文件夹下是模拟用的数据文件
 
 MySQL数据库定义了5张表，Video/User/Comment/User-User/Video-User，E-R图见PPT。因为数据比较简单，加了很多索引。
-
-索引加了之后多了很多问题，因为gorm默认是软删除，如果要覆盖这部分逻辑还是要手动改一下。
-
-gorm里有个坑，当使用了Model方法，且该对象主键有值，该值会被用于构建条件。
-
-本项目涉及的级联查询不知道是否可以采用gorm的preload机制做缓存加速[预加载](https://gorm.io/zh_CN/docs/preload.html)，或者改用复杂查询。
 
 gorm里面的等价操作
 ```go
@@ -79,8 +64,8 @@ DB.Where("id=?", 1).Delete(&User)
 
 service部分的Video增加了Title字段，而且前端确实有这个字段，是视频的标题。
 
-魔改了"github.com/appleboy/gin-jwt/v2"库的auth_jwt.go里面的ParseToken，增加了一个从request body的form获取token的方式，为了兼容所有接口。不确定其他参数行不行。
-提的PR已合并，go.mod 设置依赖为 github.com/appleboy/gin-jwt/v2 v2.8.1-0.20220605135842-8f9474155532 及以上即可。
+本项目开发期间魔改了"github.com/appleboy/gin-jwt/v2"库的auth_jwt.go里面的ParseToken，增加了一个从request body的form获取token的方式，为了兼容所有接口。
+目前相关PR已合并，go.mod 需要手动设置依赖为 github.com/appleboy/gin-jwt/v2 v2.8.1-0.20220605135842-8f9474155532 及以上。
 
 ### 功能说明
 
